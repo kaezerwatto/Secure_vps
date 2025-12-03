@@ -1,0 +1,55 @@
+# ===============================================================================
+# Fichier de valeurs pour les variables Terraform
+# TP 1 - INF 3611 : Administration Systèmes et Réseaux
+#
+# Auteur: AZAB A RANGA FRANCK MIGUEL - 23V2227
+#
+# ⚠️ IMPORTANT: Modifiez ce fichier avec vos propres valeurs avant utilisation
+# ⚠️ NE COMMITEZ PAS de mots de passe ou de clés privées dans Git
+# ===============================================================================
+
+# ===============================================================================
+# CONFIGURATION DE CONNEXION SSH
+# ===============================================================================
+
+# Adresse IP de votre serveur VPS
+server_ip = "192.168.1.100"
+
+# Utilisateur SSH (doit avoir les privilèges sudo)
+ssh_user = "admin"
+
+# Port SSH du serveur
+ssh_port = 22
+
+# Chemin vers votre clé privée SSH
+ssh_private_key_path = "~/.ssh/id_rsa"
+
+# ===============================================================================
+# CONFIGURATION DES UTILISATEURS
+# ===============================================================================
+
+# Nom du groupe à créer
+group_name = "students-inf-361"
+
+# ===============================================================================
+# CONFIGURATION DES LIMITES
+# ===============================================================================
+
+# Quota d'espace disque en Go
+disk_quota_gb = 15
+
+# Limite de mémoire RAM en pourcentage
+ram_limit_percent = 20
+
+# ===============================================================================
+# OPTIONS DE COMPORTEMENT
+# ===============================================================================
+
+# Supprimer les fichiers temporaires après exécution
+cleanup_temp_files = false
+
+# Forcer le changement de mot de passe à la première connexion
+force_password_change = true
+
+# Ajouter les utilisateurs au groupe sudo
+add_to_sudo = true

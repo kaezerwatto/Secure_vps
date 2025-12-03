@@ -1,0 +1,9 @@
+# Fichier de test pour le script de création d'utilisateurs
+# Format: username;default_password;full_name;phone;email;preferred_shell
+
+# Exemples d'utilisateurs pour le TP INF 3611
+jean.dupont;TempPass123!;Jean Dupont;+237699001122;jean.dupont@univ-yaounde1.cm;/bin/bash
+marie.kamga;SecureP@ss456;Marie Kamga;+237677889900;marie.kamga@univ-yaounde1.cm;/bin/zsh
+paul.nguema;MyP@ssw0rd789;Paul Nguema;+237655443322;paul.nguema@univ-yaounde1.cm;/bin/bash
+alice.mbarga;Str0ngP@ss!;Alice Mbarga;+237690112233;alice.mbarga@univ-yaounde1.cm;/bin/bash
+bob.fouda;P@ssw0rd2025;Bob Fouda;+237688776655;bob.fouda@univ-yaounde1.cm;/usr/bin/fish

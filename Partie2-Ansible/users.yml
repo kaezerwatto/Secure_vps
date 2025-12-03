@@ -1,0 +1,61 @@
+# ===============================================================================
+# Fichier de variables pour les utilisateurs (format YAML)
+# TP 1 - INF 3611 : Administration Systèmes et Réseaux
+#
+# Auteur: AZAB A RANGA FRANCK MIGUEL - 23V2227
+# ===============================================================================
+
+# Liste des utilisateurs à créer
+users:
+  - username: jean.dupont
+    password: "TempPass123!"
+    full_name: "Jean Dupont"
+    phone: "+237699001122"
+    email: "jean.dupont@univ-yaounde1.cm"
+    shell: "/bin/bash"
+  
+  - username: marie.kamga
+    password: "SecureP@ss456"
+    full_name: "Marie Kamga"
+    phone: "+237677889900"
+    email: "marie.kamga@univ-yaounde1.cm"
+    shell: "/bin/zsh"
+  
+  - username: paul.nguema
+    password: "MyP@ssw0rd789"
+    full_name: "Paul Nguema"
+    phone: "+237655443322"
+    email: "paul.nguema@univ-yaounde1.cm"
+    shell: "/bin/bash"
+  
+  - username: alice.mbarga
+    password: "Str0ngP@ss!"
+    full_name: "Alice Mbarga"
+    phone: "+237690112233"
+    email: "alice.mbarga@univ-yaounde1.cm"
+    shell: "/bin/bash"
+  
+  - username: bob.fouda
+    password: "P@ssw0rd2025"
+    full_name: "Bob Fouda"
+    phone: "+237688776655"
+    email: "bob.fouda@univ-yaounde1.cm"
+    shell: "/usr/bin/fish"
+
+# Configuration du groupe
+group_name: "students-inf-361"
+
+# Configuration des quotas et limites
+disk_quota_gb: 15
+ram_limit_percent: 20
+
+# Configuration SSH
+ssh_port: 22
+
+# Configuration SMTP (à sécuriser avec ansible-vault)
+smtp_host: "smtp.gmail.com"
+smtp_port: 587
+email_from: "admin@univ-yaounde1.cm"
+# Utilisez ansible-vault pour ces valeurs sensibles:
+# smtp_user: "votre-email@gmail.com"
+# smtp_password: "votre-mot-de-passe-application"

@@ -1,0 +1,369 @@
+---
+# ===============================================================================
+#
+#          FILE:  create_users.yml
+#
+#   DESCRIPTION:  Playbook Ansible pour l'automatisation de création d'utilisateurs
+#                 TP 1 - INF 3611 : Administration Systèmes et Réseaux
+#
+#        AUTHOR:  AZAB A RANGA FRANCK MIGUEL
+#     MATRICULE:  23V2227
+#       FILIÈRE:  Informatique L3
+#   INSTITUTION:  Université de Yaoundé I - Faculté des Sciences
+#
+#       VERSION:  1.0
+#       CREATED:  01/12/2025
+#
+# ===============================================================================
+
+- name: Automatisation de la création d'utilisateurs sous Linux
+  hosts: vps_servers
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # Nom du groupe à créer
+    group_name: "students-inf-361"
+    
+    # Quota disque en Go
+    disk_quota_gb: 15
+    
+    # Limite mémoire en pourcentage de RAM
+    ram_limit_percent: 20
+    
+    # Configuration du serveur SSH
+    ssh_port: 22
+    
+    # Configuration email (à personnaliser)
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    smtp_user: "votre-email@gmail.com"
+    smtp_password: "votre-mot-de-passe-application"
+    email_from: "admin@univ-yaounde1.cm"
+    
+    # Liste des utilisateurs (peut être chargée depuis un fichier YAML externe)
+    users:
+      - username: jean.dupont
+        password: "TempPass123!"
+        full_name: "Jean Dupont"
+        phone: "+237699001122"
+        email: "jean.dupont@univ-yaounde1.cm"
+        shell: "/bin/bash"
+      
+      - username: marie.kamga
+        password: "SecureP@ss456"
+        full_name: "Marie Kamga"
+        phone: "+237677889900"
+        email: "marie.kamga@univ-yaounde1.cm"
+        shell: "/bin/zsh"
+      
+      - username: paul.nguema
+        password: "MyP@ssw0rd789"
+        full_name: "Paul Nguema"
+        phone: "+237655443322"
+        email: "paul.nguema@univ-yaounde1.cm"
+        shell: "/bin/bash"
+      
+      - username: alice.mbarga
+        password: "Str0ngP@ss!"
+        full_name: "Alice Mbarga"
+        phone: "+237690112233"
+        email: "alice.mbarga@univ-yaounde1.cm"
+        shell: "/bin/bash"
+      
+      - username: bob.fouda
+        password: "P@ssw0rd2025"
+        full_name: "Bob Fouda"
+        phone: "+237688776655"
+        email: "bob.fouda@univ-yaounde1.cm"
+        shell: "/usr/bin/fish"
+
+  tasks:
+    # =========================================================================
+    # PRÉPARATION DU SYSTÈME
+    # =========================================================================
+    
+    - name: Mise à jour du cache des paquets
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+    
+    - name: Installation des paquets requis (Debian/Ubuntu)
+      apt:
+        name:
+          - quota
+          - libpam-modules
+          - mailutils
+          - python3-pip
+        state: present
+      when: ansible_os_family == "Debian"
+    
+    # =========================================================================
+    # CRÉATION DU GROUPE
+    # =========================================================================
+    
+    - name: Création du groupe {{ group_name }}
+      group:
+        name: "{{ group_name }}"
+        state: present
+      register: group_created
+    
+    - name: Log - Groupe créé
+      debug:
+        msg: "Groupe '{{ group_name }}' créé avec succès"
+      when: group_created.changed
+    
+    # =========================================================================
+    # CONFIGURATION DE LA RESTRICTION 'su'
+    # =========================================================================
+    
+    - name: Création du groupe wheel
+      group:
+        name: wheel
+        state: present
+    
+    - name: Ajout de root au groupe wheel
+      user:
+        name: root
+        groups: wheel
+        append: yes
+    
+    - name: Sauvegarde du fichier PAM su
+      copy:
+        src: /etc/pam.d/su
+        dest: /etc/pam.d/su.backup
+        remote_src: yes
+        force: no
+    
+    - name: Activation de la restriction su via PAM
+      lineinfile:
+        path: /etc/pam.d/su
+        regexp: '^#?\s*auth\s+required\s+pam_wheel\.so'
+        line: 'auth       required   pam_wheel.so'
+        state: present
+    
+    # =========================================================================
+    # CRÉATION DES UTILISATEURS
+    # =========================================================================
+    
+    - name: Vérification et installation des shells requis
+      block:
+        - name: Obtenir la liste des shells uniques demandés
+          set_fact:
+            required_shells: "{{ users | map(attribute='shell') | unique | list }}"
+        
+        - name: Installer zsh si nécessaire
+          apt:
+            name: zsh
+            state: present
+          when: 
+            - ansible_os_family == "Debian"
+            - "'/bin/zsh' in required_shells or '/usr/bin/zsh' in required_shells"
+        
+        - name: Installer fish si nécessaire
+          apt:
+            name: fish
+            state: present
+          when: 
+            - ansible_os_family == "Debian"
+            - "'/usr/bin/fish' in required_shells"
+    
+    - name: Création des utilisateurs
+      user:
+        name: "{{ item.username }}"
+        comment: "{{ item.full_name }},{{ item.phone }},{{ item.email }}"
+        shell: "{{ item.shell if item.shell | regex_search('^/') else '/bin/bash' }}"
+        groups: 
+          - "{{ group_name }}"
+          - sudo
+        append: yes
+        create_home: yes
+        password: "{{ item.password | password_hash('sha512') }}"
+        state: present
+      loop: "{{ users }}"
+      register: users_created
+    
+    - name: Forcer le changement de mot de passe à la première connexion
+      command: chage -d 0 {{ item.username }}
+      loop: "{{ users }}"
+      changed_when: true
+    
+    # =========================================================================
+    # MESSAGE DE BIENVENUE
+    # =========================================================================
+    
+    - name: Création du fichier WELCOME.txt
+      template:
+        src: templates/welcome.txt.j2
+        dest: "/home/{{ item.username }}/WELCOME.txt"
+        owner: "{{ item.username }}"
+        group: "{{ item.username }}"
+        mode: '0644'
+      loop: "{{ users }}"
+    
+    - name: Ajout de l'affichage du message dans .bashrc
+      blockinfile:
+        path: "/home/{{ item.username }}/.bashrc"
+        block: |
+          # Affichage du message de bienvenue - INF 3611
+          if [ -f ~/WELCOME.txt ]; then
+              cat ~/WELCOME.txt
+          fi
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - WELCOME MESSAGE"
+        create: yes
+        owner: "{{ item.username }}"
+        group: "{{ item.username }}"
+      loop: "{{ users }}"
+    
+    # =========================================================================
+    # CONFIGURATION DES QUOTAS DISQUE
+    # =========================================================================
+    
+    - name: Configuration des limites mémoire dans limits.conf
+      blockinfile:
+        path: /etc/security/limits.conf
+        block: |
+          # Limites pour l'utilisateur {{ item.username }} - INF 3611
+          {{ item.username }}     soft    as      {{ (ansible_memtotal_mb * 1024 * ram_limit_percent / 100) | int }}
+          {{ item.username }}     hard    as      {{ (ansible_memtotal_mb * 1024 * ram_limit_percent / 100) | int }}
+          {{ item.username }}     soft    nproc   100
+          {{ item.username }}     hard    nproc   150
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - {{ item.username }}"
+      loop: "{{ users }}"
+    
+    # =========================================================================
+    # ENVOI D'EMAIL DE BIENVENUE
+    # =========================================================================
+    
+    - name: Obtenir l'adresse IP du serveur
+      set_fact:
+        server_ip: "{{ ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0]) }}"
+    
+    - name: Envoi de l'email de bienvenue à chaque utilisateur
+      mail:
+        host: "{{ smtp_host }}"
+        port: "{{ smtp_port }}"
+        username: "{{ smtp_user }}"
+        password: "{{ smtp_password }}"
+        from: "{{ email_from }}"
+        to: "{{ item.email }}"
+        subject: "Bienvenue sur le serveur VPS - INF 3611"
+        body: |
+          Bonjour {{ item.full_name }},
+
+          Bienvenue sur le serveur VPS du cours INF 3611 - Administration Systèmes et Réseaux !
+
+          Votre compte utilisateur a été créé avec succès. Voici vos informations de connexion :
+
+          ═══════════════════════════════════════════════════════════════
+                            INFORMATIONS DE CONNEXION
+          ═══════════════════════════════════════════════════════════════
+
+          📍 Adresse IP du serveur : {{ server_ip }}
+          🔌 Port SSH              : {{ ssh_port }}
+          👤 Nom d'utilisateur     : {{ item.username }}
+          🔑 Mot de passe initial  : {{ item.password }}
+
+          ═══════════════════════════════════════════════════════════════
+                            COMMANDES DE CONNEXION
+          ═══════════════════════════════════════════════════════════════
+
+          💻 Commande SSH pour se connecter :
+             ssh {{ item.username }}@{{ server_ip }} -p {{ ssh_port }}
+
+          🔐 Commande pour transmettre votre clé publique SSH :
+
+             • Linux/macOS :
+               ssh-copy-id -p {{ ssh_port }} {{ item.username }}@{{ server_ip }}
+
+             • Windows (PowerShell) :
+               type $env:USERPROFILE\.ssh\id_rsa.pub | ssh -p {{ ssh_port }} {{ item.username }}@{{ server_ip }} "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+
+             • Alternative universelle :
+               cat ~/.ssh/id_rsa.pub | ssh -p {{ ssh_port }} {{ item.username }}@{{ server_ip }} "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+
+          ═══════════════════════════════════════════════════════════════
+                            INFORMATIONS IMPORTANTES
+          ═══════════════════════════════════════════════════════════════
+
+          ⚠️  Vous devrez changer votre mot de passe lors de votre première connexion.
+          📊 Votre quota d'espace disque est de {{ disk_quota_gb }} Go.
+          🧠 Limite mémoire par processus : {{ ram_limit_percent }}% de la RAM.
+
+          Si vous avez des questions, n'hésitez pas à contacter l'administrateur système.
+
+          Cordialement,
+          L'équipe d'administration système
+          INF 3611 - Université de Yaoundé I
+        subtype: plain
+      loop: "{{ users }}"
+      ignore_errors: yes
+      register: email_result
+    
+    - name: Avertissement si l'envoi d'email échoue
+      debug:
+        msg: "⚠️ L'envoi d'email à {{ item.item.email }} a échoué. Vérifiez la configuration SMTP."
+      loop: "{{ email_result.results }}"
+      when: item.failed | default(false)
+    
+    # =========================================================================
+    # GÉNÉRATION DU LOG
+    # =========================================================================
+    
+    - name: Création du fichier de log
+      copy:
+        content: |
+          ================================================================================
+          RAPPORT DE CRÉATION D'UTILISATEURS - ANSIBLE
+          ================================================================================
+          Date d'exécution    : {{ ansible_date_time.iso8601 }}
+          Serveur cible       : {{ inventory_hostname }} ({{ server_ip }})
+          Groupe créé         : {{ group_name }}
+          ================================================================================
+          
+          UTILISATEURS CRÉÉS :
+          {% for user in users %}
+          - {{ user.username }} ({{ user.full_name }}) - {{ user.email }}
+          {% endfor %}
+          
+          CONFIGURATION APPLIQUÉE :
+          - Quota disque      : {{ disk_quota_gb }} Go
+          - Limite mémoire    : {{ ram_limit_percent }}% RAM
+          - Changement MDP    : Obligatoire à la première connexion
+          - Groupe sudo       : Oui
+          - Restriction su    : Activée (groupe wheel)
+          
+          ================================================================================
+          Auteur: AZAB A RANGA FRANCK MIGUEL - 23V2227
+          INF 3611 - Université de Yaoundé I
+          ================================================================================
+        dest: "/var/log/ansible_user_creation_{{ ansible_date_time.date }}.log"
+        mode: '0644'
+    
+    # =========================================================================
+    # RÉSUMÉ FINAL
+    # =========================================================================
+    
+    - name: Affichage du résumé
+      debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════════
+          ✅ CRÉATION DES UTILISATEURS TERMINÉE AVEC SUCCÈS
+          ═══════════════════════════════════════════════════════════════
+          
+          📊 Résumé :
+             - Groupe créé          : {{ group_name }}
+             - Utilisateurs créés   : {{ users | length }}
+             - Emails envoyés       : {{ users | length }}
+          
+          📁 Fichiers générés :
+             - Log: /var/log/ansible_user_creation_{{ ansible_date_time.date }}.log
+             - WELCOME.txt dans chaque répertoire utilisateur
+          
+          🔐 Sécurité :
+             - Mot de passe haché SHA-512
+             - Changement obligatoire à la première connexion
+             - Restriction 'su' activée
+          
+          ═══════════════════════════════════════════════════════════════

@@ -1,0 +1,42 @@
+================================================================================
+   ____  _                                            _ 
+  |  _ \(_) ___ _ ____   _____ _ __  _   _  ___      | |
+  | |_) | |/ _ \ '_ \ \ / / _ \ '_ \| | | |/ _ \     | |
+  |  _ <| |  __/ | | \ V /  __/ | | | |_| |  __/     |_|
+  |_| \_\_|\___|_| |_|\_/ \___|_| |_|\__,_|\___|     (_)
+                                                        
+================================================================================
+
+Bienvenue, {{ item.full_name }} !
+
+================================================================================
+                    UNIVERSITÉ DE YAOUNDÉ I
+                    Faculté des Sciences
+                    Département d'Informatique
+                    INF 3611 - Administration Systèmes et Réseaux
+================================================================================
+
+Votre compte utilisateur a été créé avec succès sur ce serveur.
+
+Informations de votre compte:
+  - Nom d'utilisateur : {{ item.username }}
+  - Répertoire personnel : /home/{{ item.username }}
+  - Date de création : {{ ansible_date_time.iso8601 }}
+
+Règles d'utilisation:
+  1. Vous devez changer votre mot de passe à la première connexion
+  2. Quota d'espace disque : {{ disk_quota_gb }} Go maximum
+  3. Limite mémoire : {{ ram_limit_percent }}% de la RAM par processus
+  4. Respectez la charte d'utilisation du serveur
+
+Commandes utiles:
+  - passwd           : Changer votre mot de passe
+  - df -h ~          : Voir l'espace disque utilisé
+  - quota -s         : Voir votre quota
+  - whoami           : Afficher votre nom d'utilisateur
+
+Besoin d'aide ? Contactez l'administrateur système.
+
+================================================================================
+              Bon travail et bonne session sur le serveur !
+================================================================================
