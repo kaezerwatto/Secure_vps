@@ -11,9 +11,9 @@ Comment securiser son VPS de facon  complete avec un script bash une playbook an
 ![Ansible](https://img.shields.io/badge/Ansible-EE0000?style=for-the-badge&logo=ansible&logoColor=white)
 ![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)
 
-[![Made with Love](https://img.shields.io/badge/Made%20with-❤️-red.svg)](https://github.com/votre-username)
 [![University](https://img.shields.io/badge/University-Yaoundé%20I-blue.svg)](https://www.uy1.uninet.cm/)
 [![Course](https://img.shields.io/badge/Course-INF%203611-green.svg)](#)
+[![Made with Love](https://img.shields.io/badge/Made%20with-❤️-red.svg)](#)
 
 **Administration Systèmes et Réseaux - Université de Yaoundé I**
 
@@ -44,10 +44,8 @@ Comment securiser son VPS de facon  complete avec un script bash une playbook an
 - [🤖 Partie 2 : Playbook Ansible](#-partie-2--playbook-ansible)
 - [🏗️ Partie 3 : Terraform](#️-partie-3--terraform)
 - [📄 Format du fichier users.txt](#-format-du-fichier-userstxt)
-- [🚀 Guide de démarrage rapide](#-guide-de-démarrage-rapide)
-- [📊 Fonctionnalités implémentées](#-fonctionnalités-implémentées)
+- [📊 Tableau de conformité](#-tableau-de-conformité)
 - [🔐 Sécurité](#-sécurité)
-- [📝 Licence](#-licence)
 
 ---
 
@@ -56,10 +54,10 @@ Comment securiser son VPS de facon  complete avec un script bash une playbook an
 Ce projet automatise la création de comptes utilisateurs sur un VPS Linux, permettant de :
 
 - ✅ Créer automatiquement des utilisateurs depuis un fichier `users.txt`
-- ✅ Configurer les shells, mots de passe et répertoires personnels
-- ✅ Appliquer des quotas disque et limites mémoire
+- ✅ Configurer les shells, mots de passe (SHA-512) et répertoires personnels
+- ✅ Appliquer des quotas disque (15 Go) et limites mémoire (20% RAM)
 - ✅ Renforcer la sécurité SSH du serveur
-- ✅ Envoyer des emails de bienvenue automatiques
+- ✅ Envoyer des emails de bienvenue automatiques (Ansible)
 
 ---
 
@@ -114,8 +112,9 @@ flowchart TB
 ├── 📄 README.md                          # Documentation principale
 ├── 📄 .gitignore                         # Fichiers ignorés par Git
 │
-├── 📂 Partie0-SSH/                       # Documentation sécurité SSH
-│   └── 📄 README.md                      # Procédures et paramètres
+├── 📂 Partie0-SSH/                       # Documentation et script sécurité SSH
+│   ├── 📄 README.md                      # Procédures et paramètres
+│   └── 📄 configure_ssh.sh               # Script de durcissement SSH
 │
 ├── 📂 Partie1-Bash/                      # Script Bash
 │   ├── 📄 README.md                      # Documentation du script
@@ -128,136 +127,148 @@ flowchart TB
 │   ├── 📄 inventory.ini                  # Inventaire des serveurs
 │   ├── 📄 ansible.cfg                    # Configuration Ansible
 │   ├── 📄 users.txt                      # Fichier source utilisateurs
-│   ├── 📄 users.yml                      # Variables (optionnel)
 │   └── 📂 templates/
 │       └── 📄 welcome.txt.j2             # Template message bienvenue
 │
-├── 📂 Partie3-Terraform/                 # Infrastructure as Code
-│   ├── 📄 README.md                      # Documentation Terraform
-│   ├── 📄 main.tf                        # Configuration principale
-│   ├── 📄 variables.tf                   # Définition des variables
-│   ├── 📄 outputs.tf                     # Sorties Terraform
-│   └── 📄 terraform.tfvars.example       # Exemple de configuration
-│
-└── 📂 docs/                              # Documentation supplémentaire
-    └── 📂 images/                        # Images et diagrammes
+└── 📂 Partie3-Terraform/                 # Infrastructure as Code
+    ├── 📄 README.md                      # Documentation Terraform
+    ├── 📄 main.tf                        # Configuration principale
+    ├── 📄 variables.tf                   # Définition des variables
+    ├── 📄 outputs.tf                     # Sorties Terraform
+    └── 📄 terraform.tfvars.example       # Exemple de configuration
 ```
 
 ---
 
 ## 🔧 Prérequis
 
-### Système
+### Système cible (VPS)
 - 🐧 Linux (Ubuntu 20.04+ / Debian 11+ recommandé)
 - 🔑 Accès root ou sudo
+- 🌐 Connexion Internet
 
-### Outils requis
+### Outils requis sur la machine de contrôle
 
-| Outil | Version | Installation |
-|-------|---------|--------------|
+| Outil | Version | Installation Ubuntu/Debian |
+|-------|---------|---------------------------|
 | Git | 2.x+ | `sudo apt install git` |
 | Bash | 4.x+ | Pré-installé |
 | Ansible | 2.9+ | `sudo apt install ansible` |
-| Terraform | 1.0+ | [Instructions](#installation-terraform) |
+| Terraform | 1.0+ | Voir ci-dessous |
 
-### Installation Terraform
+### Installation de Terraform
 
 ```bash
-# Ubuntu/Debian
+# Télécharger et installer Terraform
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 sudo apt update && sudo apt install terraform
+
+# Vérifier l'installation
+terraform --version
 ```
 
 ---
 
 ## 📖 Partie 0 : Sécurité SSH
 
-### Procédure de modification SSH
+### 📍 Emplacement : `Partie0-SSH/`
 
-```mermaid
-flowchart LR
-    A["1️⃣ Backup<br/>config"] --> B["2️⃣ Modifier<br/>sshd_config"]
-    B --> C["3️⃣ Tester<br/>syntaxe"]
-    C --> D["4️⃣ Recharger<br/>SSH"]
-    D --> E["5️⃣ Tester<br/>connexion"]
-    E --> F["6️⃣ Valider"]
-    
-    style A fill:#ffeb3b
-    style B fill:#ff9800
-    style C fill:#4caf50
-    style D fill:#2196f3
-    style E fill:#9c27b0
-    style F fill:#4caf50
+### 🎯 Objectifs
+1. Décrire la procédure de modification SSH
+2. Expliquer le risque principal (lock-out)
+3. Documenter 5 paramètres de sécurité avec justifications
+
+### 📝 Contenu
+- `README.md` : Documentation complète
+- `configure_ssh.sh` : Script de durcissement automatique
+
+### 🚀 Étapes d'exécution
+
+```bash
+# 1. Se placer dans le répertoire
+cd Partie0-SSH
+
+# 2. Lire la documentation
+cat README.md
+
+# 3. (Optionnel) Exécuter le script de durcissement SSH
+chmod +x configure_ssh.sh
+sudo ./configure_ssh.sh 2222 students-inf-361
+# Arguments : [port_ssh] [groupe_autorisé]
 ```
 
-### ⚠️ Risque principal
+### ⚠️ Avertissement
 
-> **Lock-out du serveur** : Si la procédure n'est pas respectée, vous risquez de perdre totalement l'accès SSH au serveur !
+> **IMPORTANT** : Avant d'exécuter le script de configuration SSH, assurez-vous de :
+> 1. Garder une session SSH ouverte
+> 2. Avoir accès à une console de secours (KVM, IPMI, console cloud)
+> 3. Tester la nouvelle connexion AVANT de fermer la session actuelle
 
-### 🔐 5 Paramètres de sécurité essentiels
+### 🔐 Les 5 paramètres de sécurité
 
 | # | Paramètre | Valeur | Justification |
 |:-:|-----------|--------|---------------|
-| 1 | `PermitRootLogin` | `no` | 🚫 Empêche la connexion directe en root |
-| 2 | `Port` | `2222` | 🔀 Réduit les scans automatisés sur le port 22 |
-| 3 | `PasswordAuthentication` | `no` | 🔑 Force l'authentification par clé SSH |
-| 4 | `MaxAuthTries` | `3` | ⏱️ Limite les tentatives de connexion |
-| 5 | `AllowGroups` | `students-inf-361` | 👥 Restreint l'accès à un groupe spécifique |
-
-📖 **Documentation complète** : [`Partie0-SSH/README.md`](./Partie0-SSH/README.md)
+| 1 | `PermitRootLogin` | `no` | Empêche la connexion directe en root |
+| 2 | `Port` | `2222` | Réduit les scans automatisés |
+| 3 | `PasswordAuthentication` | `no` | Force l'auth par clé SSH |
+| 4 | `MaxAuthTries` | `3` | Limite les tentatives |
+| 5 | `AllowGroups` | `students-inf-361` | Restreint l'accès |
 
 ---
 
 ## 💻 Partie 1 : Script Bash
 
-### Flux d'exécution
+### 📍 Emplacement : `Partie1-Bash/`
 
-```mermaid
-flowchart TD
-    START([🚀 Démarrage]) --> CHECK{🔍 Root ?}
-    CHECK -->|Non| ERROR[❌ Erreur: privilèges insuffisants]
-    CHECK -->|Oui| READ["📄 Lecture users.txt"]
-    READ --> GROUP["📁 Création groupe"]
-    GROUP --> LOOP["🔄 Pour chaque utilisateur"]
-    
-    subgraph LOOP_CONTENT["Boucle de création"]
-        SHELL["🐚 Vérifier/installer shell"]
-        SHELL --> USER["👤 Créer utilisateur"]
-        USER --> PASS["🔐 Mot de passe SHA-512"]
-        PASS --> GROUPS["👥 Ajout aux groupes"]
-        GROUPS --> CHAGE["🔄 Forcer changement MDP"]
-        CHAGE --> WELCOME["📝 Message bienvenue"]
-        WELCOME --> QUOTA["📊 Configurer quota"]
-        QUOTA --> LIMIT["🧠 Limite mémoire"]
-    end
-    
-    LOOP --> LOOP_CONTENT
-    LOOP_CONTENT --> LOG["📋 Générer log"]
-    LOG --> END([✅ Terminé])
-    
-    style START fill:#4caf50
-    style END fill:#4caf50
-    style ERROR fill:#f44336
-```
+### 🎯 Fonctionnalités implémentées
 
-### Utilisation
+| # | Fonctionnalité | Implémentation |
+|:-:|----------------|----------------|
+| 1 | Groupe en paramètre | `$1` passé au script |
+| 2a | Nom d'utilisateur | `useradd` |
+| 2b | Nom, WhatsApp, email | Champ GECOS `-c` |
+| 2c | Shell (vérif/install) | `check_and_install_shell()` |
+| 2d | Répertoire personnel | `useradd -m` |
+| 3 | Ajout au groupe | `usermod -aG` |
+| 4 | MDP haché SHA-512 | `openssl passwd -6` |
+| 5 | Forcer changement MDP | `chage -d 0` |
+| 6 | Sudo + restriction su | `pam_wheel.so` |
+| 7 | Message bienvenue | `WELCOME.txt` + `.bashrc` |
+| 8 | Quota 15 Go | `setquota` |
+| 9 | Limite RAM 20% | `/etc/security/limits.conf` |
+| 10 | Fichier de logs | `user_creation_*.log` |
+
+### 🚀 Étapes d'exécution
 
 ```bash
-# Se placer dans le répertoire
+# 1. Se placer dans le répertoire
 cd Partie1-Bash
 
-# Rendre le script exécutable
+# 2. Vérifier/modifier le fichier users.txt
+cat users.txt
+nano users.txt  # Si besoin de modifier
+
+# 3. Rendre le script exécutable
 chmod +x create_users.sh
 
-# Exécuter avec le nom du groupe
+# 4. Exécuter le script (en tant que root)
 sudo ./create_users.sh students-inf-361
 
-# Avec un fichier personnalisé
-sudo ./create_users.sh students-inf-361 /chemin/vers/mes_users.txt
+# 5. Vérifier les résultats
+cat user_creation_*.log
+getent group students-inf-361
 ```
 
-### Exemple de sortie
+### 📄 Exemple de fichier users.txt
+
+```
+# Format: username;password;full_name;phone;email;shell
+jean.dupont;TempPass123!;Jean Dupont;+237699001122;jean.dupont@univ-yaounde1.cm;/bin/bash
+marie.kamga;SecureP@ss456;Marie Kamga;+237677889900;marie.kamga@univ-yaounde1.cm;/bin/zsh
+```
+
+### 📋 Exemple de sortie
 
 ```
 ================================================================================
@@ -270,99 +281,154 @@ sudo ./create_users.sh students-inf-361 /chemin/vers/mes_users.txt
 [SUCCESS] Utilisateur 'jean.dupont' créé avec le shell '/bin/bash'.
 [SUCCESS] Mot de passe haché SHA-512 configuré.
 [SUCCESS] Changement de mot de passe obligatoire à la première connexion.
-...
+[SUCCESS] Message de bienvenue créé.
+[SUCCESS] Quota de 15Go configuré.
+[SUCCESS] Limites mémoire configurées (20% RAM).
 ================================================================================
 SCRIPT TERMINÉ AVEC SUCCÈS
 ================================================================================
 ```
 
-📖 **Documentation complète** : [`Partie1-Bash/README.md`](./Partie1-Bash/README.md)
-
 ---
 
 ## 🤖 Partie 2 : Playbook Ansible
 
-### Architecture
+### 📍 Emplacement : `Partie2-Ansible/`
 
-```mermaid
-flowchart LR
-    subgraph Control["💻 Machine de contrôle"]
-        PLAYBOOK["📄 create_users.yml"]
-        INVENTORY["📋 inventory.ini"]
-        USERS_FILE["📄 users.txt"]
-    end
-
-    subgraph Target["☁️ Serveurs VPS"]
-        VPS1["🖥️ VPS 1"]
-        VPS2["🖥️ VPS 2"]
-        VPS3["🖥️ VPS 3"]
-    end
-
-    subgraph Results["📤 Résultats"]
-        CREATED["👥 Utilisateurs créés"]
-        EMAILS["📧 Emails envoyés"]
-    end
-
-    PLAYBOOK --> VPS1
-    PLAYBOOK --> VPS2
-    PLAYBOOK --> VPS3
-    INVENTORY --> PLAYBOOK
-    USERS_FILE --> PLAYBOOK
-    VPS1 --> CREATED
-    VPS2 --> CREATED
-    VPS3 --> CREATED
-    PLAYBOOK --> EMAILS
-
-    style Control fill:#e3f2fd
-    style Target fill:#e8f5e9
-    style Results fill:#fff3e0
-```
-
-### Utilisation
-
-```bash
-# Se placer dans le répertoire
-cd Partie2-Ansible
-
-# Configurer l'inventaire
-nano inventory.ini
-
-# Vérifier la connectivité
-ansible -i inventory.ini all -m ping
-
-# Exécuter le playbook
-ansible-playbook -i inventory.ini create_users.yml
-```
+### 🎯 Fonctionnalités
+- Toutes les fonctionnalités du script Bash
+- **+ Chargement des utilisateurs depuis `users.txt`**
+- **+ Envoi d'emails personnalisés**
 
 ### 📧 Contenu de l'email envoyé
 
-Chaque utilisateur reçoit un email contenant :
+L'email contient :
+- ✅ Adresse IP du serveur
+- ✅ Port SSH
+- ✅ Nom d'utilisateur
+- ✅ Mot de passe initial
+- ✅ Commande SSH de connexion
+- ✅ Commande `ssh-copy-id` (Linux/macOS/Windows)
 
-```
-═══════════════════════════════════════════════════════════════
-                  INFORMATIONS DE CONNEXION
-═══════════════════════════════════════════════════════════════
+### 🚀 Étapes d'exécution
 
-📍 Adresse IP du serveur : 192.168.1.100
-🔌 Port SSH              : 22
-👤 Nom d'utilisateur     : jean.dupont
-🔑 Mot de passe initial  : TempPass123!
+```bash
+# 1. Se placer dans le répertoire
+cd Partie2-Ansible
 
-💻 Commande SSH pour se connecter :
-   ssh jean.dupont@192.168.1.100 -p 22
-
-🔐 Commande pour transmettre votre clé publique SSH :
-   • Linux/macOS : ssh-copy-id jean.dupont@192.168.1.100
-   • Windows     : type %USERPROFILE%\.ssh\id_rsa.pub | ssh ...
+# 2. Configurer l'inventaire avec l'IP de votre VPS
+nano inventory.ini
 ```
 
-📖 **Documentation complète** : [`Partie2-Ansible/README.md`](./Partie2-Ansible/README.md)
+**Contenu de `inventory.ini` :**
+```ini
+[vps_servers]
+vps1 ansible_host=VOTRE_IP_VPS ansible_user=admin ansible_ssh_private_key_file=~/.ssh/id_rsa
+```
+
+```bash
+# 3. Vérifier/modifier le fichier users.txt
+cat users.txt
+nano users.txt  # Si besoin
+
+# 4. (Optionnel) Configurer l'envoi d'emails
+nano create_users.yml
+# Modifier : smtp_host, smtp_user, smtp_password
+
+# 5. Tester la connectivité
+ansible -i inventory.ini all -m ping
+
+# 6. Exécuter le playbook (dry-run d'abord)
+ansible-playbook -i inventory.ini create_users.yml --check
+
+# 7. Exécuter le playbook (pour de vrai)
+ansible-playbook -i inventory.ini create_users.yml
+
+# 8. Vérifier les résultats sur le serveur
+ssh admin@VOTRE_IP_VPS "getent group students-inf-361"
+```
+
+### 📋 Exemple de sortie Ansible
+
+```
+PLAY [Automatisation de la création d'utilisateurs sous Linux] *****************
+
+TASK [Gathering Facts] **********************************************************
+ok: [vps1]
+
+TASK [Lecture du fichier users.txt] *********************************************
+ok: [vps1 -> localhost]
+
+TASK [Affichage des utilisateurs chargés] ***************************************
+ok: [vps1] => {
+    "msg": "5 utilisateur(s) chargé(s) depuis users.txt"
+}
+
+TASK [Création du groupe students-inf-361] **************************************
+changed: [vps1]
+
+TASK [Création des utilisateurs] ************************************************
+changed: [vps1] => (item={'username': 'jean.dupont', ...})
+changed: [vps1] => (item={'username': 'marie.kamga', ...})
+
+TASK [Envoi de l'email de bienvenue à chaque utilisateur] ***********************
+ok: [vps1] => (item={'username': 'jean.dupont', ...})
+ok: [vps1] => (item={'username': 'marie.kamga', ...})
+
+PLAY RECAP **********************************************************************
+vps1 : ok=15   changed=8    unreachable=0    failed=0    skipped=0
+```
 
 ---
 
 ## 🏗️ Partie 3 : Terraform
 
-### Workflow
+### 📍 Emplacement : `Partie3-Terraform/`
+
+### 🎯 Objectif
+Utiliser Terraform pour exécuter le script Bash de création d'utilisateurs sur le VPS.
+
+### 🚀 Étapes d'exécution
+
+```bash
+# 1. Se placer dans le répertoire
+cd Partie3-Terraform
+
+# 2. Créer le fichier de configuration
+cp terraform.tfvars.example terraform.tfvars
+
+# 3. Modifier les variables
+nano terraform.tfvars
+```
+
+**Contenu de `terraform.tfvars` :**
+```hcl
+server_ip            = "VOTRE_IP_VPS"
+ssh_user             = "admin"
+ssh_port             = 22
+ssh_private_key_path = "~/.ssh/id_rsa"
+group_name           = "students-inf-361"
+```
+
+```bash
+# 4. Initialiser Terraform
+terraform init
+
+# 5. Prévisualiser les actions
+terraform plan
+
+# 6. Appliquer la configuration
+terraform apply
+# Taper 'yes' pour confirmer
+
+# 7. Vérifier les outputs
+terraform output
+
+# 8. (Optionnel) Détruire les ressources locales
+terraform destroy
+```
+
+### 📋 Workflow Terraform
 
 ```mermaid
 sequenceDiagram
@@ -372,7 +438,6 @@ sequenceDiagram
     participant S as 📄 Script Bash
 
     U->>T: terraform init
-    U->>T: terraform plan
     U->>T: terraform apply
     T->>V: Connexion SSH
     T->>V: Transfert create_users.sh
@@ -384,37 +449,6 @@ sequenceDiagram
     T-->>U: ✅ Rapport d'exécution
 ```
 
-### Utilisation
-
-```bash
-# Se placer dans le répertoire
-cd Partie3-Terraform
-
-# Créer le fichier de configuration
-cp terraform.tfvars.example terraform.tfvars
-nano terraform.tfvars
-
-# Initialiser Terraform
-terraform init
-
-# Prévisualiser les changements
-terraform plan
-
-# Appliquer la configuration
-terraform apply
-```
-
-### Variables à configurer
-
-| Variable | Description | Exemple |
-|----------|-------------|---------|
-| `server_ip` | IP du VPS | `192.168.1.100` |
-| `ssh_user` | Utilisateur SSH | `admin` |
-| `ssh_port` | Port SSH | `22` |
-| `group_name` | Nom du groupe | `students-inf-361` |
-
-📖 **Documentation complète** : [`Partie3-Terraform/README.md`](./Partie3-Terraform/README.md)
-
 ---
 
 ## 📄 Format du fichier users.txt
@@ -425,10 +459,10 @@ terraform apply
 username;default_password;full_name;phone;email;preferred_shell
 ```
 
-### Exemple
+### Exemple complet
 
 ```bash
-# Fichier users.txt - Exemple
+# Fichier users.txt - Utilisateurs pour le TP INF 3611
 # Les lignes commençant par # sont ignorées
 
 jean.dupont;TempPass123!;Jean Dupont;+237699001122;jean.dupont@univ-yaounde1.cm;/bin/bash
@@ -438,75 +472,65 @@ alice.mbarga;Str0ngP@ss!;Alice Mbarga;+237690112233;alice.mbarga@univ-yaounde1.c
 bob.fouda;P@ssw0rd2025;Bob Fouda;+237688776655;bob.fouda@univ-yaounde1.cm;/usr/bin/fish
 ```
 
-### Champs
+### Description des champs
 
-| Champ | Description | Obligatoire |
-|-------|-------------|:-----------:|
-| `username` | Nom d'utilisateur Linux | ✅ |
-| `default_password` | Mot de passe initial | ✅ |
-| `full_name` | Nom complet | ✅ |
-| `phone` | Numéro WhatsApp | ✅ |
-| `email` | Adresse email | ✅ |
-| `preferred_shell` | Shell préféré (`/bin/bash`, `/bin/zsh`, etc.) | ✅ |
-
----
-
-## 🚀 Guide de démarrage rapide
-
-### Option 1 : Script Bash (Local)
-
-```bash
-git clone https://github.com/VOTRE_USERNAME/TP-INF3611-Securite-VPS.git
-cd TP-INF3611-Securite-VPS/Partie1-Bash
-chmod +x create_users.sh
-sudo ./create_users.sh students-inf-361 users.txt
-```
-
-### Option 2 : Ansible (Distant)
-
-```bash
-git clone https://github.com/VOTRE_USERNAME/TP-INF3611-Securite-VPS.git
-cd TP-INF3611-Securite-VPS/Partie2-Ansible
-# Modifier inventory.ini avec votre IP VPS
-ansible-playbook -i inventory.ini create_users.yml
-```
-
-### Option 3 : Terraform (Infrastructure as Code)
-
-```bash
-git clone https://github.com/VOTRE_USERNAME/TP-INF3611-Securite-VPS.git
-cd TP-INF3611-Securite-VPS/Partie3-Terraform
-cp terraform.tfvars.example terraform.tfvars
-# Modifier terraform.tfvars avec vos paramètres
-terraform init && terraform apply
-```
+| Champ | Description | Exemple |
+|-------|-------------|---------|
+| `username` | Nom d'utilisateur Linux | `jean.dupont` |
+| `default_password` | Mot de passe initial | `TempPass123!` |
+| `full_name` | Nom complet | `Jean Dupont` |
+| `phone` | Numéro WhatsApp | `+237699001122` |
+| `email` | Adresse email | `jean.dupont@univ-yaounde1.cm` |
+| `preferred_shell` | Shell préféré | `/bin/bash`, `/bin/zsh`, `/usr/bin/fish` |
 
 ---
 
-## 📊 Fonctionnalités implémentées
+## 📊 Tableau de conformité
 
-### Tableau récapitulatif
+### Conformité aux exigences du TP
 
-| # | Fonctionnalité | Bash | Ansible | Terraform |
+| # | Exigence du TP | Bash | Ansible | Terraform |
 |:-:|----------------|:----:|:-------:|:---------:|
-| 1 | Création groupe (paramètre) | ✅ | ✅ | ✅ |
-| 2 | Création utilisateur complet | ✅ | ✅ | ✅ |
-| 3 | Vérification/installation shell | ✅ | ✅ | ✅ |
-| 4 | Mot de passe SHA-512 | ✅ | ✅ | ✅ |
-| 5 | Changement MDP obligatoire | ✅ | ✅ | ✅ |
-| 6 | Groupe sudo + restriction 'su' | ✅ | ✅ | ✅ |
-| 7 | Message de bienvenue | ✅ | ✅ | ✅ |
-| 8 | Quota disque 15 Go | ✅ | ✅ | ✅ |
-| 9 | Limite mémoire 20% RAM | ✅ | ✅ | ✅ |
-| 10 | Fichier de logs | ✅ | ✅ | ✅ |
-| 11 | Envoi d'email | ❌ | ✅ | ❌ |
-| 12 | Chargement depuis users.txt | ✅ | ✅ | ✅ |
+| **Partie 0** | | | | |
+| 0.1 | Procédure modification SSH | ✅ | - | - |
+| 0.2 | Risque principal | ✅ | - | - |
+| 0.3 | 5 paramètres sécurité | ✅ | - | - |
+| **Partie 1** | | | | |
+| 1.1 | Groupe en paramètre | ✅ | ✅ | ✅ |
+| 1.2 | Création utilisateur complète | ✅ | ✅ | ✅ |
+| 1.3 | Shell vérifié/installé | ✅ | ✅ | ✅ |
+| 1.4 | MDP haché SHA-512 | ✅ | ✅ | ✅ |
+| 1.5 | Forcer changement MDP | ✅ | ✅ | ✅ |
+| 1.6 | Sudo + restriction su | ✅ | ✅ | ✅ |
+| 1.7 | Message bienvenue | ✅ | ✅ | ✅ |
+| 1.8 | Quota 15 Go | ✅ | ✅ | ✅ |
+| 1.9 | Limite RAM 20% | ✅ | ✅ | ✅ |
+| 1.10 | Fichier de logs | ✅ | ✅ | ✅ |
+| **Partie 2** | | | | |
+| 2.1 | Chargement users.txt | ✅ | ✅ | ✅ |
+| 2.2 | Email avec IP serveur | - | ✅ | - |
+| 2.3 | Email avec port SSH | - | ✅ | - |
+| 2.4 | Email avec username | - | ✅ | - |
+| 2.5 | Email avec MDP initial | - | ✅ | - |
+| 2.6 | Email avec cmd SSH | - | ✅ | - |
+| 2.7 | Email avec ssh-copy-id | - | ✅ | - |
+| **Partie 3** | | | | |
+| 3.1 | Terraform exécute script | - | - | ✅ |
+| 3.2 | main.tf | - | - | ✅ |
+| 3.3 | variables.tf | - | - | ✅ |
+| **Livrables** | | | | |
+| L1 | create_users.sh | ✅ | - | - |
+| L2 | create_users.yml | - | ✅ | - |
+| L3 | Inventaire Ansible | - | ✅ | - |
+| L4 | users.txt | ✅ | ✅ | - |
+| L5 | main.tf + variables.tf | - | - | ✅ |
+| L6 | README.md par partie | ✅ | ✅ | ✅ |
 
 ---
 
 ## 🔐 Sécurité
 
-### Bonnes pratiques implémentées
+### Mesures implémentées
 
 ```mermaid
 mindmap
@@ -517,7 +541,7 @@ mindmap
       Clés SSH recommandées
     Autorisation
       Groupe sudo
-      Restriction su
+      Restriction su via PAM
       AllowGroups SSH
     Ressources
       Quota disque 15 Go
@@ -526,7 +550,7 @@ mindmap
     Audit
       Logs détaillés
       Horodatage
-      Traçabilité
+      Bannière SSH
 ```
 
 ### ⚠️ Fichiers à ne jamais commiter
@@ -537,7 +561,7 @@ mindmap
 secrets.yml
 vault.yml
 
-# États
+# État Terraform
 *.tfstate
 *.tfstate.backup
 .terraform/
@@ -546,24 +570,24 @@ vault.yml
 id_rsa*
 *.pem
 *.key
+
+# Logs
+*.log
 ```
 
 ---
 
-## 🛠️ Compétences développées
+## 🛠️ Dépannage
 
-| Compétence | Partie |
-|------------|:------:|
-| 📝 Scripts Bash robustes | 1 |
-| 👥 Gestion utilisateurs/groupes Linux | 1, 2 |
-| 🔐 Permissions et restrictions | 0, 1, 2 |
-| 🔒 Configuration SSH sécurisée | 0 |
-| 📊 Gestion ressources système | 1, 2 |
-| 🎨 Personnalisation environnement | 1, 2 |
-| 🤖 Industrialisation avec Ansible | 2 |
-| 📧 Envoi automatique d'emails | 2 |
-| 🏗️ Infrastructure as Code (Terraform) | 3 |
-| 📚 Documentation technique | Toutes |
+### Erreurs courantes
+
+| Erreur | Cause | Solution |
+|--------|-------|----------|
+| `Permission denied` | Pas root | `sudo ./create_users.sh` |
+| `Group not found` | Groupe inexistant | Vérifier le nom du groupe |
+| `Shell not found` | Shell non installé | Le script l'installe automatiquement |
+| `Quota error` | Quotas non activés | Activer usrquota dans /etc/fstab |
+| `SSH connection refused` | Mauvais port | Vérifier le port SSH |
 
 ---
 
@@ -587,8 +611,7 @@ Un grand merci à **M. NGOUANFO** pour son enseignement et son encadrement.
 
 ---
 
-![GitHub stars](https://img.shields.io/github/stars/VOTRE_USERNAME/TP-INF3611-Securite-VPS?style=social)
-![GitHub forks](https://img.shields.io/github/forks/VOTRE_USERNAME/TP-INF3611-Securite-VPS?style=social)
+**AZAB A RANGA FRANCK MIGUEL - 23V2227**
 
 </div>
 >>>>>>> 0d8aafe (feat: README complet avec diagrammes Mermaid + Ansible charge users.txt)
