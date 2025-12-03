@@ -38,12 +38,16 @@
     # Fichier source des utilisateurs (format TXT)
     users_file: "{{ playbook_dir }}/users.txt"
     
-    # Configuration email (à personnaliser)
-    smtp_host: "smtp.gmail.com"
-    smtp_port: 587
-    smtp_user: "votre-email@gmail.com"
-    smtp_password: "votre-mot-de-passe-application"
+    # Configuration email - Les secrets sont dans vault.yml
+    smtp_host: "{{ smtp_host | default('smtp.gmail.com') }}"
+    smtp_port: "{{ smtp_port | default(587) }}"
+    smtp_user: "{{ smtp_user | default('francnkkaezer30@gmail.com') }}"
+    # smtp_password est chargé depuis vault.yml
     email_from: "admin@univ-yaounde1.cm"
+
+  # Charger les secrets depuis le fichier vault
+  vars_files:
+    - vault.yml
 
   tasks:
     # =========================================================================
